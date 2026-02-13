@@ -2,6 +2,7 @@
 
 Dubhe is a high-performance engine for building fully on-chain Move applications on Sui.
 This skill provides a complete lifecycle guide: from initialization and contract development to data indexing and frontend integration.
+*Verified against latest documentation as of Feb 2026.*
 
 ## 🌟 Lifecycle Overview
 
@@ -22,6 +23,14 @@ Create a new project using the interactive generator.
 ```bash
 pnpm create dubhe
 # Select template: '101' (basic), 'web' (fullstack), or 'contract'
+```
+
+**Version Check:**
+Always ensure you are using the latest CLI version in your project:
+```bash
+pnpm list @0xobelisk/sui-cli
+# To update:
+pnpm up @0xobelisk/sui-cli
 ```
 
 ### Phase 2: Contract Development (The Loop)
