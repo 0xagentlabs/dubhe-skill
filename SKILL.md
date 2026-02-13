@@ -1,122 +1,139 @@
 # Dubhe Skill
 
-Dubhe is a high-performance engine for building fully on-chain Move applications (primarily on Sui).
-This skill provides comprehensive instructions for initializing, configuring, building, testing, and deploying Dubhe projects.
+Dubhe is a high-performance engine for building fully on-chain Move applications on Sui.
+This skill provides a complete lifecycle guide: from initialization and contract development to data indexing and frontend integration.
 
-## Usage
+## 🌟 Lifecycle Overview
 
-### 1. Initialization (New Project)
-To create a new Dubhe project, use `pnpm create dubhe`. This is an interactive command.
-If automating, use `process` tool or `exec` with `pty=true` to handle prompts.
+1.  **Init**: Create project scaffold.
+2.  **Develop**: Write Move contracts, define schemas in `dubhe.config.ts`.
+3.  **Build & Test**: Compile and verify logic.
+4.  **Deploy**: Publish to Sui network.
+5.  **Index**: Sync on-chain data to SQL via Indexer.
+6.  **Serve**: Expose data via GraphQL.
+7.  **Consume**: Integrate with frontend apps using Client SDK.
 
+## 🛠️ Usage Guide
+
+### Phase 1: Initialization
+
+Create a new project using the interactive generator.
 ```bash
-# Start the interactive creator
 pnpm create dubhe
-# Follow prompts: Project Name -> Template (101, web, contract)
+# Select template: '101' (basic), 'web' (fullstack), or 'contract'
 ```
 
-**Templates:**
-- `101`: A basic starter project.
-- `web`: Includes frontend integration examples.
-- `contract`: Focuses purely on Move contracts.
+### Phase 2: Contract Development (The Loop)
 
-### 2. Project Structure
-A standard Dubhe project layout:
+Run these from project root using `pnpm exec dubhe <cmd>`.
 
-```
-my-dubhe-project/
-├── dubhe.config.ts       # Core configuration (Schemas, Network, etc.)
-├── Move.toml             # Move package manifest
-├── sources/              # Your Move smart contracts (.move files)
-├── tests/                # Move unit tests
-├── .env                  # Environment variables (PRIVATE_KEY)
-└── package.json          # Scripts and dependencies
+#### 1. Configuration (`dubhe.config.ts`)
+Define your data models here. This is the source of truth.
+```typescript
+export const dubheConfig = {
+  name: 'my_dapp',
+  schemas: {
+    hero: { level: 'u64', exp: 'u64' } // Automatically generates Move structs & TS types
+  }
+}
 ```
 
-### 3. Core Workflow
-Run these commands from the project root. The CLI is a local dev dependency.
-
-#### Development Cycle
-1.  **Doctor Check**: Ensure your environment (Sui CLI, Node, etc.) is ready.
-    ```bash
-    pnpm exec dubhe doctor
-    ```
-2.  **Generate Keys**: Create a deployer account if you don't have one.
-    ```bash
-    pnpm exec dubhe generate-key
-    ```
-    *Check `.env` for the generated private key and address.*
-
-3.  **Build Contracts**: Compile your Move code.
-    ```bash
-    pnpm exec dubhe build
-    ```
-
-4.  **Test**: Run unit tests.
-    ```bash
-    pnpm exec dubhe test
-    ```
-
-5.  **Deploy (Publish)**: Deploy to the network.
-    ```bash
-    pnpm exec dubhe publish
-    ```
-    *Default network is usually `testnet` or `localnet` depending on config.*
-
-#### Schema Management
-When you modify `dubhe.config.ts`, you MUST regenerate the Store libraries.
+#### 2. Code Generation
+**Crucial Step:** Whenever `dubhe.config.ts` changes, run this to update Move and TS bindings.
 ```bash
 pnpm exec dubhe schemagen
 ```
-This updates the Move code that handles your data structures.
 
-#### Network & Faucet
-- **Start Local Node**:
-  ```bash
-  pnpm exec dubhe node
-  ```
-- **Request Tokens**:
-  ```bash
-  pnpm exec dubhe faucet
-  ```
-- **Switch Environment**:
-  ```bash
-  pnpm exec dubhe switch-env <network>
-  ```
-
-### 4. Configuration (`dubhe.config.ts`)
-This file defines your data schemas and project settings.
-
-**Example:**
-```typescript
-import { DubheConfig } from '@0xobelisk/sui-common';
-
-export const dubheConfig = {
-  name: 'my_game',
-  description: 'My On-Chain Game',
-  schemas: {
-    // Define a schema for a player
-    player: {
-      name: 'String',
-      level: 'u64',
-      inventory: 'vector<u64>',
-    },
-    // Define a schema for game state
-    gameState: {
-      score: 'u64',
-      isActive: 'bool',
-    }
-  }
-} as DubheConfig;
+#### 3. Build & Test
+```bash
+pnpm exec dubhe build
+pnpm exec dubhe test
 ```
-*After changing this file, run `pnpm exec dubhe schemagen`.*
 
-### 5. Troubleshooting
-- **Build Errors?** Ensure `Move.toml` dependencies are up to date and valid.
-- **Deploy Fails?** Check `.env` for `PRIVATE_KEY` and ensure the account has gas (use `faucet`).
-- **Schema Mismatch?** If your Move code complains about missing structs, run `schemagen`.
-- **Environment Issues?** `dubhe doctor` is your best friend.
+#### 4. Deploy (Publish)
+Ensure `.env` has `PRIVATE_KEY` with gas.
+```bash
+pnpm exec dubhe publish
+```
 
-## Tips
-- The CLI is installed locally. Always prefix with `pnpm exec` or define scripts in `package.json`.
-- Keep your `dubhe.config.ts` clean; it's the source of truth for your data models.
+#### 5. Upgrade
+To upgrade deployed packages (requires UpgradeCap):
+```bash
+pnpm exec dubhe upgrade
+```
+
+### Phase 3: Data Indexing (Indexer)
+
+Dubhe Indexer syncs on-chain events/objects to a PostgreSQL database.
+
+**Prerequisites:**
+- PostgreSQL running (e.g., via Docker).
+- `DATABASE_URL` set in `.env`.
+
+**Steps:**
+1.  **Convert Config:** Indexer needs JSON format.
+    ```bash
+    pnpm exec dubhe convert-json --config-path dubhe.config.ts
+    ```
+2.  **Start Indexer:**
+    ```bash
+    # Standard start
+    dubhe-indexer --config dubhe.config.json --network testnet --with-graphql
+
+    # OR via Docker (production)
+    docker run -e DATABASE_URL=... 0xobelisk/dubhe-indexer ...
+    ```
+
+### Phase 4: GraphQL API
+
+Expose the indexed data via a GraphQL endpoint.
+
+```bash
+# Start server (default port 4000)
+dubhe-graphql-server start
+```
+*Connects to the same PostgreSQL database as the Indexer.*
+
+### Phase 5: Frontend Integration
+
+Use the generated TS client to interact with your dApp.
+
+**Installation:**
+```bash
+pnpm add @0xobelisk/sui-client @0xobelisk/sui-common
+```
+
+**Usage:**
+```typescript
+import { DubheClient } from '@0xobelisk/sui-client';
+import { NetworkType } from '@0xobelisk/sui-common';
+import { dubheConfig } from './dubhe.config';
+
+const client = new DubheClient({
+  networkType: NetworkType.TESTNET,
+  config: dubheConfig,
+  // ... metadata from deploy
+});
+
+// Query data
+const hero = await client.getObject('hero', objectId);
+```
+
+## 🧰 Troubleshooting & Utilities
+
+-   **`dubhe doctor`**: Diagnose environment issues (Node ver, Sui CLI, Docker).
+-   **`dubhe faucet`**: Get testnet SUI tokens.
+-   **`dubhe node`**: Start a local Sui node for fast iteration.
+-   **`dubhe generate-key`**: Create a new keypair for deployment.
+
+## 📂 Project Structure
+
+```
+my-dubhe-app/
+├── dubhe.config.ts        # 1. Config Source
+├── build/                 # 2. Compilation Artifacts
+├── src/                   # 3. Frontend Code (if web template)
+├── sources/               # 4. Move Contracts
+├── tests/                 # 5. Move Tests
+└── package.json           # 6. Scripts
+```
